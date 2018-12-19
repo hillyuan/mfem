@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool static_cond = false;
-   bool pa = false;
-   bool cuda = false;
+   bool pa = true;
+   bool cuda = true;
    bool occa = false;
    bool visualization = 1;
 
