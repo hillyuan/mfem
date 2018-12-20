@@ -100,6 +100,7 @@ int main(int argc, char *argv[])
    int precision = 8;
    cout.precision(precision);
 
+   printf("Setting up arguments \n");
    OptionsParser args(argc, argv);
 
    args.AddOption(&pa, "-p", "--pa", "-no-p", "--no-pa",
@@ -140,11 +141,6 @@ int main(int argc, char *argv[])
       return 1;
    }
    args.PrintOptions(cout);
-
-   config::useCuda(cuda);
-   config::useOcca(occa);
-   config::usePA(pa);
-   config::DeviceSetup();
 
    printf("No 2. \n");
    // 2. Read the mesh from the given mesh file. We can handle geometrically
@@ -286,6 +282,12 @@ int main(int argc, char *argv[])
    //    right-hand side, and perform time-integration (looping over the time
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
+
+   config::useCuda(cuda);
+   config::useOcca(occa);
+   config::usePA(pa);
+   config::DeviceSetup();
+
 
    double t = 0.0;
    adv.SetTime(t);
