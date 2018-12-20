@@ -92,10 +92,21 @@ int main(int argc, char *argv[])
    bool binary = false;
    int vis_steps = 5;
 
+   //Okina settings
+   bool pa = false;
+   bool cuda = false;
+   bool occa = false;
+  
    int precision = 8;
    cout.precision(precision);
 
    OptionsParser args(argc, argv);
+
+   args.AddOption(&pa, "-p", "--pa", "-no-p", "--no-pa",
+                  "Enable Partial Assembly.");
+   args.AddOption(&cuda, "-cu", "--cuda", "-no-cu", "--no-cuda", "Enable CUDA.");
+   args.AddOption(&occa, "-oc", "--occa", "-no-oc", "--no-occa", "Enable OCCA.");
+
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&problem, "-p", "--problem",
@@ -130,11 +141,19 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
+   config::useCuda(cuda);
+   config::useOcca(occa);
+   config::usePA(pa);
+   config::DeviceSetup();
+
+   printf("No 2. \n");
    // 2. Read the mesh from the given mesh file. We can handle geometrically
-   //    periodic meshes in this code.
+   //    periodic meshes in this code.   
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
+   printf("Checking dimension \n");
    int dim = mesh->Dimension();
 
+   printf("No 3. \n");
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
@@ -179,9 +198,10 @@ int main(int argc, char *argv[])
    FunctionCoefficient inflow(inflow_function);
    FunctionCoefficient u0(u0_function);
 
-   BilinearForm m(&fes);
+   FABilinearForm m(&fes);
    m.AddDomainIntegrator(new MassIntegrator);
-   BilinearForm k(&fes);
+   FABilinearForm k(&fes);
+
    k.AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
    k.AddInteriorFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
