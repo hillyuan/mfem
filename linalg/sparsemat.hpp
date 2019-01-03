@@ -115,6 +115,11 @@ public:
    /// Create a SparseMatrix with diagonal v, i.e. A = Diag(v)
    SparseMatrix(const Vector & v);
 
+   /// Copies data from host to device
+   void Push() const;
+
+   /// Copies data from device to host
+   void Pull() const;
 
    /// Assignment operator: deep copy
    SparseMatrix& operator=(const SparseMatrix &rhs);

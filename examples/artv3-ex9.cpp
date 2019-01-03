@@ -33,11 +33,57 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include "gpu_helper.hpp"
 
 using namespace std;
 using namespace mfem;
 
 typedef std::chrono::high_resolution_clock Clock;
+
+
+//Sparse Matrix multiplication...
+
+void SpMatVec(Vector &y_vec, SparseMatrix &A_Sp, Vector &b_vec)
+{
+
+  //Push to GPU
+  y_vec.Push();
+  b_vec.Push();
+  A_Sp.Push();
+
+  double *y = y_vec.GetData();
+  double *b = b_vec.GetData();
+
+  int *rowPtr = A_Sp.GetI(); //Row offsets
+  int *colPtr = A_Sp.GetJ(); //Column index
+  double *data = A_Sp.GetData(); //Get data
+
+  //Vectors
+  GET_ADRS(y);
+  GET_ADRS(b);
+
+  //Sparse Matrix
+  GET_ADRS_T(rowPtr, int);
+  GET_ADRS_T(colPtr, int);
+  GET_ADRS(data);
+
+  my_forall(0, A_Sp.Size(), [=] __device__ (int i) {
+
+      double dot(0);
+      for(int k = d_rowPtr[i]; k < d_rowPtr[i+1]; ++k) {
+        dot += d_data[k]*d_b[d_colPtr[k]];
+      }
+
+      d_y[i] = dot;
+    });
+
+
+  //Pull from GPU
+  y_vec.Pull();
+  b_vec.Pull();
+  A_Sp.Pull();
+}
+
 
 // Choice for the problem setup. The fluid velocity, initial condition and
 // inflow boundary condition are chosen based on this parameter.
@@ -94,6 +140,9 @@ int main(int argc, char *argv[])
    bool visit = false;
    bool binary = false;
    int vis_steps = 5;
+
+   //CUDA enabled
+   bool cuda = true;
 
    int precision = 8;
    cout.precision(precision);
@@ -270,6 +319,23 @@ int main(int argc, char *argv[])
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
+   //8.5
+   //Configure GPU
+   if (cuda) { config::useCuda(); }
+   config::enableGpu(0/*,occa,cuda*/);
+   config::SwitchToGpu(); //Tuns on the GPU
+
+
+#if 0
+   //--------
+   //Toy example to get things going...
+   SparseMatrix SpA(m.SpMat());
+   Vector y(SpA.Size());
+   //Sparse matrix vector multiply
+   // y = SpA * b
+   SpMatVec(y, SpA, b);
+#endif
+
    double t = 0.0;
    adv.SetTime(t);
    ode_solver->Init(adv);
@@ -302,8 +368,8 @@ int main(int argc, char *argv[])
          }
       }
    }
-   auto t2 = Clock::now();   
-   std::cout << "Delta t2-t1: " 
+   auto t2 = Clock::now();
+   std::cout << "Delta t2-t1: "
              << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()
              << " nanoseconds" << std::endl;
 
