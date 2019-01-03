@@ -29,12 +29,15 @@
 //               with VisIt (visit.llnl.gov) is also illustrated.
 
 #include "mfem.hpp"
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
 
 using namespace std;
 using namespace mfem;
+
+typedef std::chrono::high_resolution_clock Clock;
 
 // Choice for the problem setup. The fluid velocity, initial condition and
 // inflow boundary condition are chosen based on this parameter.
@@ -85,29 +88,17 @@ int main(int argc, char *argv[])
    int ref_levels = 2;
    int order = 3;
    int ode_solver_type = 4;
-   double t_final = 10.0;
+   double t_final = 0.5;
    double dt = 0.01;
    bool visualization = true;
    bool visit = false;
    bool binary = false;
    int vis_steps = 5;
 
-   //Okina settings
-   bool pa = false;
-   bool cuda = false;
-   bool occa = false;
-  
    int precision = 8;
    cout.precision(precision);
 
-   printf("Setting up arguments \n");
    OptionsParser args(argc, argv);
-
-   args.AddOption(&pa, "-p", "--pa", "-no-p", "--no-pa",
-                  "Enable Partial Assembly.");
-   args.AddOption(&cuda, "-cu", "--cuda", "-no-cu", "--no-cuda", "Enable CUDA.");
-   args.AddOption(&occa, "-oc", "--occa", "-no-oc", "--no-occa", "Enable OCCA.");
-
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&problem, "-p", "--problem",
@@ -142,14 +133,11 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
-   printf("No 2. \n");
    // 2. Read the mesh from the given mesh file. We can handle geometrically
-   //    periodic meshes in this code.   
+   //    periodic meshes in this code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
-   printf("Checking dimension \n");
    int dim = mesh->Dimension();
 
-   printf("No 3. \n");
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
@@ -194,10 +182,9 @@ int main(int argc, char *argv[])
    FunctionCoefficient inflow(inflow_function);
    FunctionCoefficient u0(u0_function);
 
-   FABilinearForm m(&fes);
+   BilinearForm m(&fes);
    m.AddDomainIntegrator(new MassIntegrator);
-   FABilinearForm k(&fes);
-
+   BilinearForm k(&fes);
    k.AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
    k.AddInteriorFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
@@ -283,17 +270,13 @@ int main(int argc, char *argv[])
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
-   config::useCuda(cuda);
-   config::useOcca(occa);
-   config::usePA(pa);
-   config::DeviceSetup();
-
-
    double t = 0.0;
    adv.SetTime(t);
    ode_solver->Init(adv);
 
    bool done = false;
+
+   auto t1 = Clock::now();
    for (int ti = 0; !done; )
    {
       double dt_real = min(dt, t_final - t);
@@ -319,6 +302,10 @@ int main(int argc, char *argv[])
          }
       }
    }
+   auto t2 = Clock::now();   
+   std::cout << "Delta t2-t1: " 
+             << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()
+             << " nanoseconds" << std::endl;
 
    // 9. Save the final solution. This output can be viewed later using GLVis:
    //    "glvis -m ex9.mesh -g ex9-final.gf".
