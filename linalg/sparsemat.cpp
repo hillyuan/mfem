@@ -561,6 +561,7 @@ void SparseMatrix::Mult(const Vector &x, Vector &y) const
 {
    y = 0.0;
    AddMult(x, y);
+   printf("SparseMatrix::Mult \n");
 }
 
 void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const

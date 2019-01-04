@@ -41,50 +41,6 @@ using namespace mfem;
 typedef std::chrono::high_resolution_clock Clock;
 
 
-//Sparse Matrix multiplication...
-
-void SpMatVec(Vector &y_vec, SparseMatrix &A_Sp, Vector &b_vec)
-{
-
-  //Push to GPU
-  y_vec.Push();
-  b_vec.Push();
-  A_Sp.Push();
-
-  double *y = y_vec.GetData();
-  double *b = b_vec.GetData();
-
-  int *rowPtr = A_Sp.GetI(); //Row offsets
-  int *colPtr = A_Sp.GetJ(); //Column index
-  double *data = A_Sp.GetData(); //Get data
-
-  //Vectors
-  GET_ADRS(y);
-  GET_ADRS(b);
-
-  //Sparse Matrix
-  GET_ADRS_T(rowPtr, int);
-  GET_ADRS_T(colPtr, int);
-  GET_ADRS(data);
-
-  my_forall(0, A_Sp.Size(), [=] __device__ (int i) {
-
-      double dot(0);
-      for(int k = d_rowPtr[i]; k < d_rowPtr[i+1]; ++k) {
-        dot += d_data[k]*d_b[d_colPtr[k]];
-      }
-
-      d_y[i] = dot;
-    });
-
-
-  //Pull from GPU
-  y_vec.Pull();
-  b_vec.Pull();
-  A_Sp.Pull();
-}
-
-
 // Choice for the problem setup. The fluid velocity, initial condition and
 // inflow boundary condition are chosen based on this parameter.
 int problem;
@@ -133,7 +89,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/periodic-hexagon.mesh";
    int ref_levels = 2;
    int order = 3;
-   int ode_solver_type = 4;
+   int ode_solver_type = 1; //fwd euler
    double t_final = 0.5;
    double dt = 0.01;
    bool visualization = true;
@@ -325,16 +281,9 @@ int main(int argc, char *argv[])
    config::enableGpu(0/*,occa,cuda*/);
    config::SwitchToGpu(); //Tuns on the GPU
 
-
-#if 0
-   //--------
-   //Toy example to get things going...
-   SparseMatrix SpA(m.SpMat());
-   Vector y(SpA.Size());
-   //Sparse matrix vector multiply
-   // y = SpA * b
-   SpMatVec(y, SpA, b);
-#endif
+   m.SpMat().Pull();
+   k.SpMat().Pull();
+   b.Pull();
 
    double t = 0.0;
    adv.SetTime(t);
@@ -392,7 +341,7 @@ int main(int argc, char *argv[])
 // Implementation of class FE_Evolution
 FE_Evolution::FE_Evolution(SparseMatrix &_M, SparseMatrix &_K, const Vector &_b)
    : TimeDependentOperator(_M.Size()), M(_M), K(_K), b(_b), z(_M.Size())
-{
+{    
    M_solver.SetPreconditioner(M_prec);
    M_solver.SetOperator(M);
 
@@ -400,15 +349,38 @@ FE_Evolution::FE_Evolution(SparseMatrix &_M, SparseMatrix &_K, const Vector &_b)
    M_solver.SetRelTol(1e-9);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(100);
-   M_solver.SetPrintLevel(0);
+   M_solver.SetPrintLevel(3);
+
+   printf("Constructed a FE_Evolution class \n");
+   printf("Pushed data onto the GPU \n");
+   M.Push();
+   K.Push();
+   b.Push();
+   z.Push();
+   
 }
 
+//All on the GPU... with no data transfers...
 void FE_Evolution::Mult(const Vector &x, Vector &y) const
 {
-   // y = M^{-1} (K x + b)
-   K.Mult(x, z);
-   z += b;
-   M_solver.Mult(z, y);
+  printf("FE_Evolution::Mult\n");
+  //y = M^{-1} (K x + b)
+
+
+  K.Mult(x, z);
+  z += b;  
+  //kernels::SpMatVec(z, K, x);
+  //kernels::VecAdd(z, z, b);
+  
+  M.Pull();
+  K.Pull();
+  b.Pull();
+  z.Pull();
+
+  M_solver.Mult(z, y);
+
+  printf("FE_Evolution::Mult - complete \n");
+  exit(-1);
 }
 
 
