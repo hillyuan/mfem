@@ -126,75 +126,82 @@ double dotProduct(Vector &x_vec, Vector &y_vec)
   res_vec.Pull();
 
   return res[0];
+
 }
 
-double l2Norm(Vector &r_vec) 
+//norm is given squared here.
+double l2Norm(Vector &a_vec, Vector &b_vec)
 {
 
   Vector norm_vec(1);  
-  int len = r_vec.Size();
+  int len = a_vec.Size();
   
-  double *r = r_vec.GetData();
+  double *a = a_vec.GetData();
+  double *b = b_vec.GetData();
   double *norm = norm_vec.GetData();
   
-  GET_ADRS(r); 
+  GET_ADRS(a); 
+  GET_ADRS(b); 
   GET_ADRS(norm);
 
-  return 5;
+  //Worst l2 norm ever..
+  my_forall(0, 1, [=] __device__ (int i) {
+
+      double dot(0);
+      for(int k=0; k<len; ++k) {
+        dot += (d_a[k]-d_b[k])*(d_a[k]-d_b[k]);
+      }
+      
+      d_norm[0] = dot;
+    });
+
+  norm_vec.Pull();
+  
+  return norm[0];
 }
 
 
+//x_vec = inv(A_Sp)*b_vec
 void myCG(Vector &x_vec, SparseMatrix &A_Sp, const Vector &b_vec) 
-{
+{ 
   
-  printf("Running my CG \n");
-  Vector r_vec(b_vec); //old residual 
-  Vector p_vec(r_vec); //search direction
+  x_vec = 0.0;
+  Vector rk_vec(b_vec);
+  Vector pk_vec(rk_vec);
+  Vector y_vec(b_vec.Size());
+  Vector xnew_vec(x_vec.Size());
+  Vector rnew_vec(x_vec.Size());
   
-  Vector rnew_vec(r_vec); //new residual
-  Vector xnew_vec(x_vec); //new solution
+  double res = 10.0;
+  while(res*res > 1e-9) {
 
-  Vector y_vec(x_vec); //temp - A*p_vec
+    //compute step size
+    double top = dotProduct(rk_vec, rk_vec);
+    SpMatVec(y_vec, A_Sp, pk_vec);
+    double bottom = dotProduct(pk_vec, y_vec);
+    double alpha = top/bottom;
 
-  x_vec *= 0.0;
-  x_vec.Push();
+    //update approx solution
+    VecScaleAdd(xnew_vec, x_vec, alpha, pk_vec);
 
-  double res = 10;
-  while (res*res > 1e-9) {
+    //update residual
+    VecScaleAdd(rnew_vec, rk_vec, (-alpha), y_vec);
 
-  //Compute step length... 
-  res = dotProduct(r_vec, r_vec);
+    //compute ||res||^2_l2
+    res = dotProduct(rnew_vec, rnew_vec);
+    
+    //compute gradient correction factor
+    double beta = dotProduct(rnew_vec, rnew_vec)/dotProduct(rk_vec, rk_vec);
 
-  printf("residual = %.10f \n", res);
-  
-  //y_vec = A*p_vec
-  SpMatVec(y_vec, A_Sp, p_vec);
-  double bottom = dotProduct(p_vec,y_vec);
-
-  double alpha = res / bottom;
-  
-  //update approximate solution
-  VecScaleAdd(xnew_vec, x_vec, alpha, p_vec);
-  
-  //Update residual 
-  VecScaleAdd(rnew_vec, r_vec, (-alpha), y_vec); 
-  
-  //Compute a gradient correction factor
-  double beta = dotProduct(rnew_vec,rnew_vec)/dotProduct(r_vec, r_vec);
-  
-  //Set new search direction
-  VecScaleAdd(p_vec, rnew_vec, beta, p_vec);
-
-  //update residual 
-  VecScaleAdd(r_vec, rnew_vec, 0.0, rnew_vec);
-
+    //new search direction
+    VecScaleAdd(pk_vec, rnew_vec, beta, pk_vec);
+    
+    //update r-old and x-old
+    VecScaleAdd(rk_vec, rnew_vec, 0.0, rnew_vec);
+    VecScaleAdd(x_vec, xnew_vec, 0.0, rnew_vec);    
   }
 
-  
-
-  
-
-
+ 
 }
 
 
