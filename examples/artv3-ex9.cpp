@@ -324,6 +324,10 @@ int main(int argc, char *argv[])
       u.Save(osol);
    }
 
+   //9.5 output the solution
+   u.Print(mfem::out, 1);
+
+
    // 10. Free the used memory.
    delete ode_solver;
    delete dc;
@@ -356,8 +360,9 @@ void FE_Evolution::Mult(const Vector &x, Vector &y) const
 #if defined(USE_GPU)
    kernels::myCG(y, M, z);
 #else
-   M_solver.Mult(z, y); //y = inv(M) y - solves linear system
+   M_solver.Mult(z, y); //y = inv(M) z - solves linear system
 #endif
+   y.Pull();
 }
 
 

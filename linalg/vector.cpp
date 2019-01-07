@@ -217,10 +217,12 @@ Vector &Vector::Add(const double a, const Vector &Va)
 #endif
    if (a != 0.0)
    {
-      for (int i = 0; i < size; i++)
-      {
-         data[i] += a * Va(i);
-      }
+     //for (int i = 0; i < size; i++)
+     //{
+     //data[i] += a * Va(i);
+     //}
+     double *Va_ptr = Va.GetData();
+     kVectorAlphaAdd(data, data, a, Va_ptr, Va.Size());
    }
    return *this;
 }

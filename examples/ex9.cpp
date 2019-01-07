@@ -82,10 +82,10 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ref_levels = 2;
-   int order = 3;
-   int ode_solver_type = 4;
-   double t_final = 10.0;
+   int ref_levels = 1;
+   int order = 1;
+   int ode_solver_type = 1; //fwd euler
+   double t_final = 0.5;
    double dt = 0.01;
    bool visualization = true;
    bool visit = false;
@@ -305,6 +305,9 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u.Save(osol);
    }
+
+   //9.5 output the solution
+   u.Print(mfem::out, 1);
 
    // 10. Free the used memory.
    delete ode_solver;
