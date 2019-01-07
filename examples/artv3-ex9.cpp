@@ -29,17 +29,17 @@
 //               with VisIt (visit.llnl.gov) is also illustrated.
 
 #include "mfem.hpp"
+#include "gpu_helper.hpp"
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-#include "gpu_helper.hpp"
 
 using namespace std;
 using namespace mfem;
 
 typedef std::chrono::high_resolution_clock Clock;
-
+#define USE_GPU //Use the GPU in this example
 
 // Choice for the problem setup. The fluid velocity, initial condition and
 // inflow boundary condition are chosen based on this parameter.
@@ -87,8 +87,8 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ref_levels = 2;
-   int order = 3;
+   int ref_levels = 1;
+   int order = 1;
    int ode_solver_type = 1; //fwd euler
    double t_final = 0.5;
    double dt = 0.01;
@@ -96,9 +96,6 @@ int main(int argc, char *argv[])
    bool visit = false;
    bool binary = false;
    int vis_steps = 5;
-
-   //CUDA enabled
-   bool cuda = true;
 
    int precision = 8;
    cout.precision(precision);
@@ -275,21 +272,18 @@ int main(int argc, char *argv[])
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
-   //8.5
-   //Configure GPU
-   if (cuda) { config::useCuda(); }
-   config::enableGpu(0/*,occa,cuda*/);
-   config::SwitchToGpu(); //Tuns on the GPU
-
-   m.SpMat().Pull();
-   k.SpMat().Pull();
-   b.Pull();
-
    double t = 0.0;
    adv.SetTime(t);
    ode_solver->Init(adv);
 
    bool done = false;
+
+   //8.5 Setup GPU
+#if defined(USE_GPU)
+  config::useCuda();
+  config::enableGpu(0/*,occa,cuda*/);
+  config::SwitchToGpu(); //Turns on the GPU
+#endif
 
    auto t1 = Clock::now();
    for (int ti = 0; !done; )
@@ -318,7 +312,7 @@ int main(int argc, char *argv[])
       }
    }
    auto t2 = Clock::now();
-   std::cout << "Delta t2-t1: "
+   std::cout << "Delta t2-t1: " 
              << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()
              << " nanoseconds" << std::endl;
 
@@ -341,7 +335,7 @@ int main(int argc, char *argv[])
 // Implementation of class FE_Evolution
 FE_Evolution::FE_Evolution(SparseMatrix &_M, SparseMatrix &_K, const Vector &_b)
    : TimeDependentOperator(_M.Size()), M(_M), K(_K), b(_b), z(_M.Size())
-{    
+{
    M_solver.SetPreconditioner(M_prec);
    M_solver.SetOperator(M);
 
@@ -349,38 +343,21 @@ FE_Evolution::FE_Evolution(SparseMatrix &_M, SparseMatrix &_K, const Vector &_b)
    M_solver.SetRelTol(1e-9);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(100);
-   M_solver.SetPrintLevel(3);
-
-   printf("Constructed a FE_Evolution class \n");
-   printf("Pushed data onto the GPU \n");
-   M.Push();
-   K.Push();
-   b.Push();
-   z.Push();
-   
+   M_solver.SetPrintLevel(0);
 }
 
-//All on the GPU... with no data transfers...
 void FE_Evolution::Mult(const Vector &x, Vector &y) const
 {
-  printf("FE_Evolution::Mult\n");
-  //y = M^{-1} (K x + b)
+   // y = M^{-1} (K x + b)
+   K.Mult(x, z);
+   z += b;
 
-
-  K.Mult(x, z);
-  z += b;  
-  //kernels::SpMatVec(z, K, x);
-  //kernels::VecAdd(z, z, b);
-  
-  M.Pull();
-  K.Pull();
-  b.Pull();
-  z.Pull();
-
-  M_solver.Mult(z, y);
-
-  printf("FE_Evolution::Mult - complete \n");
-  exit(-1);
+//Solve system
+#if defined(USE_GPU)
+   kernels::myCG(y, M, z);
+#else
+   M_solver.Mult(z, y); //y = inv(M) y - solves linear system
+#endif
 }
 
 
