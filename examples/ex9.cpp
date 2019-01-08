@@ -29,6 +29,7 @@
 //               with VisIt (visit.llnl.gov) is also illustrated.
 
 #include "mfem.hpp"
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
@@ -36,6 +37,7 @@
 using namespace std;
 using namespace mfem;
 
+typedef std::chrono::high_resolution_clock Clock;
 // Choice for the problem setup. The fluid velocity, initial condition and
 // inflow boundary condition are chosen based on this parameter.
 int problem;
@@ -82,15 +84,15 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ref_levels = 1;
-   int order = 1;
+   int ref_levels = 5;
+   int order = 3;
    int ode_solver_type = 1; //fwd euler
-   double t_final = 0.5;
-   double dt = 0.01;
+   double t_final = .5;
+   double dt = 0.0001;
    bool visualization = true;
    bool visit = false;
    bool binary = false;
-   int vis_steps = 5;
+   int vis_steps = 100;
 
    int precision = 8;
    cout.precision(precision);
@@ -272,6 +274,8 @@ int main(int argc, char *argv[])
    ode_solver->Init(adv);
 
    bool done = false;
+
+   auto t1 = Clock::now();
    for (int ti = 0; !done; )
    {
       double dt_real = min(dt, t_final - t);
@@ -298,6 +302,11 @@ int main(int argc, char *argv[])
       }
    }
 
+   auto t2 = Clock::now();
+   std::cout << "Delta t2-t1: " 
+             << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()
+             << " nanoseconds" << std::endl;
+
    // 9. Save the final solution. This output can be viewed later using GLVis:
    //    "glvis -m ex9.mesh -g ex9-final.gf".
    {
@@ -307,7 +316,11 @@ int main(int argc, char *argv[])
    }
 
    //9.5 output the solution
-   u.Print(mfem::out, 1);
+   ofstream myfile;
+   myfile.precision(15);
+   myfile.open("cpu_u.txt");
+   u.Print(myfile, 1);
+   myfile.close();
 
    // 10. Free the used memory.
    delete ode_solver;

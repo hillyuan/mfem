@@ -294,8 +294,6 @@ void CGSolver::UpdateVectors()
 
 void CGSolver::Mult(const Vector &b, Vector &x) const
 {
-   printf("CGSolver::Mult - start \n");
-
    int i;
    double r0, den, nom, nom0, betanom, alpha, beta;
 
@@ -312,7 +310,6 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
    if (prec)
    {
-     printf("using preconditioner \n");
       prec->Mult(r, z); // z = B r
       d = z;
    }
@@ -442,8 +439,6 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
                 << pow (betanom/nom0, 0.5/final_iter) << '\n';
    }
    final_norm = sqrt(betanom);
-   
-   printf("CGSolver::Mult - end \n");
 }
 
 void CG(const Operator &A, const Vector &b, Vector &x,

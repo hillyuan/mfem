@@ -87,15 +87,15 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ref_levels = 1;
-   int order = 1;
+   int ref_levels = 5;
+   int order = 3;
    int ode_solver_type = 1; //fwd euler
-   double t_final = 0.5;
-   double dt = 0.01;
+   double t_final = .5;
+   double dt = 0.0001;
    bool visualization = true;
    bool visit = false;
    bool binary = false;
-   int vis_steps = 5;
+   int vis_steps = 100;
 
    int precision = 8;
    cout.precision(precision);
@@ -311,6 +311,7 @@ int main(int argc, char *argv[])
          }
       }
    }
+   cudaDeviceSynchronize();
    auto t2 = Clock::now();
    std::cout << "Delta t2-t1: " 
              << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()
@@ -325,7 +326,11 @@ int main(int argc, char *argv[])
    }
 
    //9.5 output the solution
-   u.Print(mfem::out, 1);
+   ofstream myfile;
+   myfile.precision(15);
+   myfile.open("gpu_u.txt");
+   u.Print(myfile, 1);
+   myfile.close();
 
 
    // 10. Free the used memory.
@@ -362,7 +367,6 @@ void FE_Evolution::Mult(const Vector &x, Vector &y) const
 #else
    M_solver.Mult(z, y); //y = inv(M) z - solves linear system
 #endif
-   y.Pull();
 }
 
 

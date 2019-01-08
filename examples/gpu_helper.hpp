@@ -2,6 +2,7 @@
 #define __GPU_HELPER_HPP__
 
 #include "mfem.hpp"
+#include "../linalg/kernels/vector.hpp"
 #include <cuda.h>
 #include <cstdio>
 #include <cstdlib>
@@ -28,7 +29,7 @@ void my_forall(int begin, int end, LOOP_BODY&& body)
   cudaDeviceSynchronize();
   cudaError_t err = cudaGetLastError();
 
-  if (err != cudaSuccess) {    
+  if (err != cudaSuccess) {
     printf("CUDA Error: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
@@ -77,7 +78,7 @@ void VecAdd(Vector &z_vec, const Vector &x_vec, const Vector &y_vec)
   GET_ADRS(y);
   GET_ADRS(z);
 
-  my_forall(0, y_vec.Size(), [=] __device__ (int i) {      
+  my_forall(0, y_vec.Size(), [=] __device__ (int i) {
       d_z[i] = d_x[i] + d_y[i];
     });
 }
@@ -93,14 +94,14 @@ void VecScaleAdd(Vector &z_vec, const Vector &x_vec, const double alpha, const V
   GET_ADRS(y);
   GET_ADRS(z);
 
-  my_forall(0, y_vec.Size(), [=] __device__ (int i) {      
+  my_forall(0, y_vec.Size(), [=] __device__ (int i) {
       d_z[i] = d_x[i] + alpha*d_y[i];
     });
 }
 
 double dotProduct(Vector &x_vec, Vector &y_vec)
 {
-  
+
   Vector res_vec(1); //store result here
 
   int len = x_vec.Size();
@@ -108,40 +109,22 @@ double dotProduct(Vector &x_vec, Vector &y_vec)
   double *y = y_vec.GetData();
   double *res = res_vec.GetData();
 
-  GET_ADRS(x);
-  GET_ADRS(y);
-  GET_ADRS(res);
-
-  ///Worst dot product ever... 
-  my_forall(0, 1, [=] __device__ (int i) {
-
-      double dot(0);
-      for(int k=0; k<len; ++k) {
-        dot += d_x[k]*d_y[k];
-      }
-      
-      d_res[0] = dot;
-    });
-
-  res_vec.Pull();
-
-  return res[0];
-
+  return mfem::kVectorDot(x_vec.Size(), x, y);
 }
 
 //norm is given squared here.
 double l2Norm(Vector &a_vec, Vector &b_vec)
 {
 
-  Vector norm_vec(1);  
+  Vector norm_vec(1);
   int len = a_vec.Size();
-  
+
   double *a = a_vec.GetData();
   double *b = b_vec.GetData();
   double *norm = norm_vec.GetData();
-  
-  GET_ADRS(a); 
-  GET_ADRS(b); 
+
+  GET_ADRS(a);
+  GET_ADRS(b);
   GET_ADRS(norm);
 
   //Worst l2 norm ever..
@@ -151,27 +134,27 @@ double l2Norm(Vector &a_vec, Vector &b_vec)
       for(int k=0; k<len; ++k) {
         dot += (d_a[k]-d_b[k])*(d_a[k]-d_b[k]);
       }
-      
+
       d_norm[0] = dot;
     });
 
   norm_vec.Pull();
-  
+
   return norm[0];
 }
 
 
 //x_vec = inv(A_Sp)*b_vec
-void myCG(Vector &x_vec, SparseMatrix &A_Sp, const Vector &b_vec) 
-{ 
-  
+void myCG(Vector &x_vec, SparseMatrix &A_Sp, const Vector &b_vec)
+{
+
   x_vec = 0.0;
-  Vector rk_vec(b_vec);
-  Vector pk_vec(rk_vec);
-  Vector y_vec(b_vec.Size());
-  Vector xnew_vec(x_vec.Size());
-  Vector rnew_vec(x_vec.Size());
-  
+  static Vector rk_vec(b_vec);
+  static Vector pk_vec(rk_vec);
+  static Vector y_vec(b_vec.Size());
+  static Vector xnew_vec(x_vec.Size());
+  static Vector rnew_vec(x_vec.Size());
+
   double res = 10.0;
   while(res*res > 1e-9) {
 
@@ -189,19 +172,22 @@ void myCG(Vector &x_vec, SparseMatrix &A_Sp, const Vector &b_vec)
 
     //compute ||res||^2_l2
     res = dotProduct(rnew_vec, rnew_vec);
-    
+
     //compute gradient correction factor
     double beta = dotProduct(rnew_vec, rnew_vec)/dotProduct(rk_vec, rk_vec);
 
     //new search direction
     VecScaleAdd(pk_vec, rnew_vec, beta, pk_vec);
-    
+
     //update r-old and x-old
-    VecScaleAdd(rk_vec, rnew_vec, 0.0, rnew_vec);
-    VecScaleAdd(x_vec, xnew_vec, 0.0, rnew_vec);    
+    //VecScaleAdd(rk_vec, rnew_vec, 0.0, rnew_vec);
+    //VecScaleAdd(x_vec, xnew_vec, 0.0, rnew_vec);
+    rk_vec = rnew_vec;
+    x_vec  = xnew_vec;
   }
 
- 
+
+
 }
 
 

@@ -107,7 +107,7 @@ clean: clean-build clean-exec $(SUBDIRS_CLEAN)
 
 clean-build:
 	rm -f *.o *~ $(SEQ_EXAMPLES) $(PAR_EXAMPLES)
-	rm -rf *.dSYM *.TVD.*breakpoints
+	rm -rf *.dSYM *.TVD.*breakpoints cpu_u.txt gpu_u.txt
 
 clean-exec:
 	@rm -f refined.mesh displaced.mesh mesh.* ex5.mesh
