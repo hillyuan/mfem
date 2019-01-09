@@ -86,9 +86,10 @@ int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    problem = 0;
-   const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ref_levels = 5;
-   int order = 3;
+   //const char *mesh_file = "../data/periodic-hexagon.mesh";
+   const char *mesh_file = "../data/periodic-cube.mesh";
+   int ref_levels = 1;
+   int order = 4;
    int ode_solver_type = 1; //fwd euler
    double t_final = .5;
    double dt = 0.0001;

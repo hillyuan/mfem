@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 #include "../linalg/kernels/vector.hpp"
+#include "../linalg/kernels/sparsemat.hpp"
 #include <cuda.h>
 #include <cstdio>
 #include <cstdlib>
@@ -40,6 +41,7 @@ namespace kernels
 //Sparse Matrix multiplication...
 void SpMatVec(Vector &y_vec, SparseMatrix &A_Sp, const Vector &b_vec)
 {
+
   double *y = y_vec.GetData();
   double *b = b_vec.GetData();
 
@@ -47,6 +49,11 @@ void SpMatVec(Vector &y_vec, SparseMatrix &A_Sp, const Vector &b_vec)
   int *colPtr = A_Sp.GetJ(); //Column index
   double *data = A_Sp.GetData(); //Get data
 
+  //Okina's
+  y_vec = 0.0; //set to zero
+  mfem::kAddMult(A_Sp.Size(), rowPtr, colPtr, data, b, y);
+
+#if 0 //
   //Vectors
   GET_ADRS(y);
   GET_ADRS(b);
@@ -65,6 +72,7 @@ void SpMatVec(Vector &y_vec, SparseMatrix &A_Sp, const Vector &b_vec)
 
       d_y[i] = dot;
     });
+#endif
 }
 
 //z = x + y
@@ -155,8 +163,11 @@ void myCG(Vector &x_vec, SparseMatrix &A_Sp, const Vector &b_vec)
   static Vector xnew_vec(x_vec.Size());
   static Vector rnew_vec(x_vec.Size());
 
+  rk_vec = b_vec;
+  pk_vec = rk_vec;
+
   double res = 10.0;
-  while(res*res > 1e-9) {
+  while(res > 1e-15*1e-15) {
 
     //compute step size
     double top = dotProduct(rk_vec, rk_vec);
