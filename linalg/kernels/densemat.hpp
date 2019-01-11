@@ -58,6 +58,9 @@ void kCalcInverse2D(const double, const double*, double*);
 
 void kCalcInverse3D(const double, const double*, double*);
 
+void kGetRowSums(const int, const int, double*, const double*);
+
+
 } // mfem namespace
 
 #endif // MFEM_DENSEMAT_KERNELS

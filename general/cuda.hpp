@@ -27,6 +27,14 @@ void cuWrap(const size_t N, DBODY &&d_body)
 {
    const size_t gridSize = (N+BLOCK_SZ-1)/BLOCK_SZ;
    cuKernel<<<gridSize, BLOCK_SZ>>>(N,d_body);
+
+   cudaDeviceSynchronize();
+   cudaError_t err = cudaGetLastError();
+   if (err != cudaSuccess) {
+     printf("CUDA Error: %s\n", cudaGetErrorString(err));
+     exit(-1);
+   }
+
 }
 constexpr static inline bool usingNvccCompiler() { return true; }
 #else // ***********************************************************************

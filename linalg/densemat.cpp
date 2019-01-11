@@ -141,6 +141,16 @@ DenseMatrix::DenseMatrix(double *d, int h, int w)
    capacity = -h*w;
 }
 
+void DenseMatrix::Push() const
+{
+   mm::push(data, capacity*sizeof(double));
+}
+
+void DenseMatrix::Pull() const
+{
+   mm::pull(data, capacity*sizeof(double));
+}
+
 void DenseMatrix::SetSize(int h, int w)
 {
    MFEM_ASSERT(h >= 0 && w >= 0,
@@ -2386,6 +2396,11 @@ void DenseMatrix::Getl1Diag(Vector &l) const
 
 void DenseMatrix::GetRowSums(Vector &l) const
 {
+
+  double *vec = l.GetData();
+
+  kGetRowSums(height, width, vec, this->data);
+  /*TODO: Delete
    l.SetSize(height);
    for (int i = 0; i < height; i++)
    {
@@ -2396,6 +2411,7 @@ void DenseMatrix::GetRowSums(Vector &l) const
       }
       l(i) = d;
    }
+  */
 }
 
 void DenseMatrix::Diag(double c, int n)
@@ -2864,10 +2880,22 @@ void DenseMatrix::Threshold(double eps)
 
 void DenseMatrix::Print(std::ostream &out, int width_) const
 {
+
+  this->Pull(); //Data data from gpu
    // save current output flags
    ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
+
+   printf("height = %d and width = %d \n",height, width);
+   for(int r=0; r<height; ++r) {
+     for(int c=0; c<width; ++c) {
+       cout << (*this)(r,c) <<" ";
+     }
+     printf("\n");
+   }
+
+#if 0
    for (int i = 0; i < height; i++)
    {
       out << "[row " << i << "]\n";
@@ -2884,6 +2912,7 @@ void DenseMatrix::Print(std::ostream &out, int width_) const
          }
       }
    }
+#endif
    // reset output flags to original values
    out.flags(old_flags);
 }
@@ -3819,8 +3848,21 @@ void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 }
 
 
+void LUFactors::Push(int mydim)
+{
+  mm::push(data, mydim*mydim*sizeof(double));
+  mm::push(ipiv, mydim*sizeof(int));
+}
+
+void LUFactors::Pull(int mydim)
+{
+  mm::pull(data, mydim*mydim*sizeof(double));
+  mm::pull(ipiv, mydim*sizeof(int));
+}
+
 void LUFactors::Factor(int m)
 {
+
 #ifdef MFEM_USE_LAPACK
    int info = 0;
    if (m) { dgetrf_(&m, &m, data, &m, ipiv, &info); }
@@ -4042,6 +4084,20 @@ void LUFactors::BlockBackSolve(int m, int n, int r, const double *U12,
 }
 
 
+void LUFactors::Print(int m)
+{
+
+  this->Pull(m);
+  for(int r=0; r<m; ++r)
+  {
+    for(int c=0; c<m; ++c)
+    {
+      printf("%.15f %f ",data[c+m*r]);
+    }
+    printf("\n");
+  }
+}
+
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
    : MatrixInverse(mat)
 {
@@ -4066,7 +4122,24 @@ void DenseMatrixInverse::Factor()
    MFEM_ASSERT(a, "DenseMatrix is not given");
    const double *adata = a->data;
    kFactorSet(width*width, adata, lu.data);
+
+   lu.Pull(width);
+   printf("\n  ipiv\n");
+   for(int i=0; i<width; ++i)
+   {
+     printf("%d \n", lu.ipiv[i]);
+   }
+   printf("\n \n");
+   for(int r=0; r<width; ++r) {
+     for(int c=0; c<width; ++c) {
+       printf("%.15f ",lu.data[c+r*width]);
+     }
+     printf("\n");
+   }
+   lu.Push(width);
    lu.Factor(width);
+   printf("About to exit factor method \n");
+
 }
 
 void DenseMatrixInverse::GetInverseMatrix(DenseMatrix &Ainv) const
@@ -4118,6 +4191,16 @@ void DenseMatrixInverse::TestInversion()
       C(i,i) -= 1.0;
    }
    mfem::out << "size = " << width << ", i_max = " << C.MaxMaxNorm() << endl;
+}
+
+void DenseMatrixInverse::Print()
+{
+  printf("\n printing dense matrix \n");
+  a->Print();
+
+  printf("\n Printing LU factors \n");
+  lu.Print(a->Size());
+
 }
 
 DenseMatrixInverse::~DenseMatrixInverse()

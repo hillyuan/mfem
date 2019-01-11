@@ -94,49 +94,58 @@ void kFactorSet(const int s, const double *adata, double *ludata)
 // *****************************************************************************
 void kFactor(const int m, int *ipiv, double *data)
 {
-   GET_ADRS_T(ipiv,int);
-   GET_ADRS(data);
-   MFEM_FORALL(i, m,
-   {
-      // pivoting
-      {
-         int piv = i;
-         double a = fabs(d_data[piv+i*m]);
-         for (int j = i+1; j < m; j++)
-         {
-            const double b = fabs(d_data[j+i*m]);
-            if (b > a)
+
+  GET_ADRS_T(ipiv,int);
+  GET_ADRS(data);
+
+  MFEM_FORALL(i, 1,
+  {
+
+    for(int tid=0; tid<m; tid++){
+
+    // pivoting
+    {
+      int piv = tid;
+      double a = fabs(d_data[piv+tid*m]);
+      for (int j = tid+1; j < m; j++)
+        {
+          const double b = fabs(d_data[j+tid*m]);
+          if (b > a)
             {
-               a = b;
-               piv = j;
+              a = b;
+              piv = j;
             }
-         }
-         d_ipiv[i] = piv;
-         if (piv != (int) i)
-         {
-            // swap rows i and piv in both L and U parts
-            for (int j = 0; j < m; j++)
+        }
+      d_ipiv[tid] = piv;
+      if (piv != (int) tid)
+        {
+          // swap rows i and piv in both L and U parts
+          for (int j = 0; j < m; j++)
             {
-               Swap<double>(d_data[i+j*m], d_data[piv+j*m]);
+              Swap<double>(d_data[tid+j*m], d_data[piv+j*m]);
             }
-         }
-      }
-      const double diim = d_data[i+i*m];
-      assert(diim != 0.0);
-      const double a_ii_inv = 1.0/d_data[i+i*m];
-      for (int j = i+1; j < m; j++)
+        }
+    }
+    const double diim = d_data[tid+tid*m];
+    assert(diim != 0.0);
+    const double a_ii_inv = 1.0/d_data[tid+tid*m];
+    for (int j = tid+1; j < m; j++)
       {
-         d_data[j+i*m] *= a_ii_inv;
+        d_data[j+tid*m] *= a_ii_inv;
       }
-      for (int k = i+1; k < m; k++)
+    for (int k = tid+1; k < m; k++)
       {
-         const double a_ik = d_data[i+k*m];
-         for (int j = i+1; j < m; j++)
-         {
-            d_data[j+k*m] -= a_ik * d_data[j+i*m];
-         }
+        const double a_ik = d_data[tid+k*m];
+        for (int j = tid+1; j < m; j++)
+          {
+            d_data[j+k*m] -= a_ik * d_data[j+tid*m];
+          }
       }
-   });
+
+  }
+
+  });
+
 }
 
 // **************************************************************************
@@ -354,6 +363,27 @@ void kCalcInverse3D(const double t, const double *a, double *inva)
    d_inva[2+3*0] = (d_a[1+3*0]*d_a[2+3*1]-d_a[1+3*1]*d_a[2+3*0])*t;
    d_inva[2+3*1] = (d_a[0+3*1]*d_a[2+3*0]-d_a[0+3*0]*d_a[2+3*1])*t;
    d_inva[2+3*2] = (d_a[0+3*0]*d_a[1+3*1]-d_a[0+3*1]*d_a[1+3*0])*t;
+}
+
+// *****************************************************************************
+void kGetRowSums(const int height, const int width, double *vec, const double *matrix)
+{
+
+  GET_ADRS(vec);
+  GET_CONST_ADRS(matrix);
+
+  MFEM_FORALL(i, height,
+  {
+    double d = 0.0;
+    for(int j = 0; j < width; j++)
+      {
+        d += d_matrix[j + i*width];
+      }
+    d_vec[i] = d;
+  });
+
+
+
 }
 
 } // namespace mfem

@@ -2099,6 +2099,7 @@ void SparseMatrix::SetSubMatrixTranspose(const Array<int> &rows,
 void SparseMatrix::GetSubMatrix(const Array<int> &rows, const Array<int> &cols,
                                 DenseMatrix &subm) const
 {
+  
    int i, j, gi, gj, s, t;
    double a;
 
@@ -2554,7 +2555,13 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
 
    out << height << '\n'; // number of rows
    out << width << '\n';  // number of columns
-
+   
+   for(int i=0; i < height; ++i)
+     {
+       //cout<<I[i]<<" "<<J[i]<<" "<<A[i]<<" \n";
+       printf(" %.15d %.15d %.15f \n", I[i], J[i], A[i]);
+     }   
+   /*
    for (i = 0; i <= height; i++)
    {
       out << I[i] << '\n';
@@ -2569,6 +2576,7 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
    {
       out << A[i] << '\n';
    }
+   */
 }
 
 void SparseMatrix::PrintInfo(std::ostream &out) const

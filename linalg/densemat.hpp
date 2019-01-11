@@ -58,6 +58,12 @@ public:
        array. */
    DenseMatrix(double *d, int h, int w);
 
+   /// Copies data from host to device
+   void Push() const;
+
+   /// Copies data from device to host
+   void Pull() const;
+
    /// Change the data array and the size of the DenseMatrix.
    /** The DenseMatrix does not assume ownership of the data array, i.e. it will
        not delete the data array @a d. This method should not be used with
@@ -469,6 +475,12 @@ public:
 
    LUFactors(double *data_, int *ipiv_) : data(data_), ipiv(ipiv_) { }
 
+   /// Copies data from host to device
+   void Push(const int mydim);
+
+   /// Copies data from device to host
+   void Pull(const int mydim);
+
    /** Factorize the current data of size (m x m) overwriting it with the LU
        factors. The factorization is such that L.U = P.A, where A is the
        original matrix and P is a permutation matrix represented by ipiv. */
@@ -540,6 +552,8 @@ public:
           Y1 <- X1 = U^{-1} (Y1 - U12 X2). */
    void BlockBackSolve(int m, int n, int r, const double *U12,
                        const double *X2, double *Y1) const;
+
+   void Print(int m);
 };
 
 
@@ -554,7 +568,7 @@ private:
 public:
    /// Default constructor.
    DenseMatrixInverse() : a(NULL), lu(NULL, NULL) { }
-
+  
    /** Creates square dense matrix. Computes factorization of mat
        and stores LU factors. */
    DenseMatrixInverse(const DenseMatrix &mat);
@@ -587,6 +601,9 @@ public:
 
    /// Print the numerical conditioning of the inversion: ||A^{-1} A - I||.
    void TestInversion();
+
+   //Print both dense and lu matrices
+   void Print();
 
    /// Destroys dense inverse matrix.
    virtual ~DenseMatrixInverse();
