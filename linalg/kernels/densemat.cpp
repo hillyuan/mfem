@@ -377,7 +377,7 @@ void kGetRowSums(const int height, const int width, double *vec, const double *m
     double d = 0.0;
     for(int j = 0; j < width; j++)
       {
-        d += d_matrix[j + i*width];
+        d += d_matrix[i+j*height];
       }
     d_vec[i] = d;
   });
