@@ -2487,6 +2487,7 @@ void SparseMatrix::Print(std::ostream & out, int _width) const
 
 void SparseMatrix::PrintMatlab(std::ostream & out) const
 {
+   Pull();//pull from the gpu..
    out << "% size " << height << " " << width << "\n";
    out << "% Non Zeros " << NumNonZeroElems() << "\n";
    int i, j;
@@ -2551,6 +2552,7 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
 {
    MFEM_VERIFY(Finalized(), "Matrix must be finalized.");
 
+   Pull();
    int i;
 
    out << height << '\n'; // number of rows

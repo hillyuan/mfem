@@ -48,6 +48,8 @@ void kVectorOpSubtract(const size_t, const double*, double*);
 
 void kAddElementVector(const size_t, const int*, const double*, double*);
 
+void kGetSubVector(const int *dofs, int n, double *elem_data, double *data);
+
 }
 
 #endif // MFEM_VECTOR_KERNELS

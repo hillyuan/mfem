@@ -3892,6 +3892,7 @@ double LUFactors::Det(int m) const
 
 void LUFactors::Mult(int m, int n, double *X) const
 {
+  printf("using incorrect mult \n"); exit(-1);
    const double *data = this->data;
    const int *ipiv = this->ipiv;
    double *x = X;
@@ -4123,22 +4124,9 @@ void DenseMatrixInverse::Factor()
    const double *adata = a->data;
    kFactorSet(width*width, adata, lu.data);
 
-   lu.Pull(width);
-   printf("\n  ipiv\n");
-   for(int i=0; i<width; ++i)
-   {
-     printf("%d \n", lu.ipiv[i]);
-   }
-   printf("\n \n");
-   for(int r=0; r<width; ++r) {
-     for(int c=0; c<width; ++c) {
-       printf("%.15f ",lu.data[c+r*width]);
-     }
-     printf("\n");
-   }
-   lu.Push(width);
+   //lu.Pull(width);
+   //lu.Push(width);
    lu.Factor(width);
-   printf("About to exit factor method \n");
 
 }
 

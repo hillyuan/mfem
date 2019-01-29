@@ -259,4 +259,29 @@ void kAddElementVector(const size_t n, const int *dofs,
 }
 
 // *****************************************************************************
+
+void kGetSubVector(const int *dofs, const int n, double *elem_data, double *data)
+{
+  
+  GET_CONST_ADRS_T(dofs, int);
+  GET_ADRS(elem_data);
+  GET_ADRS(data);
+
+  MFEM_FORALL(i, n, 
+  {
+    int j;
+    if ((j=d_dofs[i]) >= 0)
+    {
+      d_elem_data[i] = d_data[j];
+    }
+    else
+    {
+      d_elem_data[i] = -d_data[-1-j];
+    }
+  });
+
+
+}
+
+// *****************************************************************************
 } // mfem
