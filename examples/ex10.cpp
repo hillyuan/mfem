@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../data/beam-quad.mesh";
-   int ref_levels = 2;
+   int ref_levels = 0;
    int order = 2;
    int ode_solver_type = 3;
    double t_final = 300.0;
@@ -364,6 +364,11 @@ int main(int argc, char *argv[])
       ee_ofs.precision(8);
       oper.GetElasticEnergyDensity(x, w);
       w.Save(ee_ofs);
+
+	  std::string fname = "out.vtk";
+	  std::fstream vtkFs(fname.c_str(), std::ios::out);
+	  const int ref = 0;
+	  mesh->PrintVTK(vtkFs, ref);
    }
 
    // 10. Free the used memory.

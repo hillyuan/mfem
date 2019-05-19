@@ -47,7 +47,7 @@ using namespace mfem;
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   const char *mesh_file = "../data/beam-tri.mesh";
+   const char *mesh_file = "../data/beam-quad.mesh";
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
    {
       int ref_levels =
          (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
+	  ref_levels = 0;
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -234,6 +235,11 @@ int main(int argc, char *argv[])
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);
       x.Save(sol_ofs);
+
+	  std::string fname = "out.vtk";
+	  std::fstream vtkFs(fname.c_str(), std::ios::out);
+	  const int ref = 0;
+	  mesh->PrintVTK(vtkFs, ref);
    }
 
    // 15. Send the above data by socket to a GLVis server. Use the "n" and "b"
