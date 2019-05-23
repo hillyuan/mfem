@@ -299,6 +299,11 @@ int main(int argc, char *argv[])
       ofstream deformation_ofs("deformation.sol");
       deformation_ofs.precision(8);
       x_def.Save(deformation_ofs);
+
+	  std::string fname = "out.vtk";
+	  std::fstream vtkFs(fname.c_str(), std::ios::out);
+	  const int ref = 0;
+	  mesh->PrintVTK(vtkFs, ref);
    }
 
    // 15. Free the used memory
